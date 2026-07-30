@@ -1,2 +1,2 @@
 # particle-evo
-A particle based evolution simulator, inspired by [Particle Life by DicSo92](https://sandbox-science.com/particle-life)
+A particle based evolution simulator, inspired by [Particle Life](https://sandbox-science.com/particle-life) by [DicSo92](https://github.com/DicSo92)
