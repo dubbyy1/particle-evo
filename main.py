@@ -1,26 +1,39 @@
 from partevo import World
 
+import numpy as np
 import pygame
 import sys
 
-def draw_particles(world:World, screen):
-        for particle in list(world.particles.values()):
-            pygame.draw.circle(screen, world.species[particle.species]["colour"], (particle.x, particle.y), 3)
+species_count = 5
+species_colours:list[str] = ["#FF5347", "#FE9D4E", "#F5F263", "#81D252", "#41ADC7", "#5A4DB7"]
+
+def draw_particles(data:np.ndarray, screen:pygame.Surface):
+    width, height = screen.get_width(), screen.get_height()
+    pos, species = data
+
+    for i in range(len(pos)):
+        if species[i] == -1:
+            break
+        x, y = (
+            (float(pos[i][0] + 1)/2) * width,
+            (float(pos[i][1] + 1)/2) * height
+        )
+
+        _ = pygame.draw.circle(screen, species_colours[species[i]], (x, y), 1)
 
 
 matrix_rect = pygame.Rect(15, 15, 0, 0)
 show_matrix = True
-def draw_matrix(world:World, screen):
+def draw_matrix(matrix, screen):
     global matrix_rect
 
     CELL_SIZE = 20
     GAP_SIZE = 5
     key_size = CELL_SIZE + GAP_SIZE*2
-    species = list(world.species.keys())
 
 
     def draw_window():
-        grid_size = CELL_SIZE * len(species) + GAP_SIZE * (len(species) - 1) + key_size if show_matrix else CELL_SIZE
+        grid_size = CELL_SIZE * species_count + GAP_SIZE * (species_count - 1) + key_size if show_matrix else CELL_SIZE
         window_size = grid_size + GAP_SIZE*2
 
         matrix_rect.size = (window_size, window_size)
@@ -31,10 +44,10 @@ def draw_matrix(world:World, screen):
     def draw_grid():
         grid_pos = (matrix_rect.x + GAP_SIZE, matrix_rect.y + GAP_SIZE)
 
-        for y, y_species in enumerate(species):
-            for x, x_species in enumerate(species):
+        for x in range(species_count):
+            for y in range(species_count):
                 if y == 0:
-                    key_colour:tuple[int, int, int] = world.species[x_species]["colour"]
+                    key_colour:tuple[int, int, int]|str = species_colours[x]
                     _ = pygame.draw.rect(screen, key_colour, (
                         x*25 + grid_pos[0] + key_size,
                         grid_pos[1],
@@ -42,7 +55,7 @@ def draw_matrix(world:World, screen):
                         20)
                     )
                 if x == 0:
-                    key_colour = world.species[y_species]["colour"]
+                    key_colour:tuple[int, int, int]|str = species_colours[y]
                     _ = pygame.draw.rect(screen, key_colour, (
                         grid_pos[0],
                         y*25 + grid_pos[1] + key_size,
@@ -51,15 +64,15 @@ def draw_matrix(world:World, screen):
                     )
 
 
-                bond = world.get_bond((y_species, x_species))
+                bond = matrix[y, x]
                 cell_colour = (
                     (225*bond*-1 + 30, 30, 30) if bond < 0
                     else (30, 225*bond + 30, 30) if bond > 0
                     else (30, 30, 30)
                 )
                 _ = pygame.draw.rect(screen, cell_colour, (
-                    x*25 + grid_pos[0] + key_size,
-                    y*25 + grid_pos[1] + key_size,
+                    y*25 + grid_pos[0] + key_size,
+                    x*25 + grid_pos[1] + key_size,
                     20,
                     20)
                 )
@@ -124,21 +137,12 @@ def main():
     clock = pygame.time.Clock()
     running = True
 
-    world = World((WIDTH, HEIGHT))
-    world.add_species("red", "#FF5347")
-    world.add_species("orange", "#FE9D4E")
-    world.add_species("yellow", "#F5F263")
-    world.add_species("green", "#81D252")
-    world.add_species("blue", "#41ADC7")
-    world.add_species("purple", "#5A4DB7")
-    world.set_matrix_preset("chains")
-    # world.randomize_bonds()
-    draw_matrix(world, screen)
-    # world.set_bond(("blue", "blue"), 0.5)
-    # world.set_bond(("blue", "red"), 1)
-    # world.set_bond(("red", "blue"), -0.2)
-    # world.set_bond(("red", "red"), 0.3)
-    world.populate(int(sys.argv[1]))
+    world = World(WIDTH, HEIGHT)
+    draw_matrix(world.get_matrix(), screen)
+    world.populate(int(sys.argv[1]), species_count)
+    world.randomize_matrix()
+    # world.set_matrix_preset("chains")
+
 
     while running:
         delta = clock.tick(60) / 1000.0
@@ -150,8 +154,8 @@ def main():
 
         world.tick(delta)
 
-        draw_particles(world, screen)
-        draw_matrix(world, screen)
+        draw_particles(world.get_particles(), screen)
+        draw_matrix(world.get_matrix(), screen)
 
         pygame.display.flip()
 
