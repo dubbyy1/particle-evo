@@ -1,1 +1,1 @@
-from .physics_spesian import World
+from .physics import World

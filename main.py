@@ -16,9 +16,8 @@ def draw_particles(data:np.ndarray, screen:pygame.Surface):
         if min(x, y) < -1:
             continue
 
-        # print(traits[i])
         fill = traits[i] * 255
-        stroke = [((r + 1)/2)*255 for r in receptors[i]]
+        # stroke = [((r + 1)/2)*255 for r in receptors[i]]
 
         _ = pygame.draw.circle(screen, fill, (x, y), 3)
         # _ = pygame.draw.circle(screen, stroke, (x, y), 3, 2)
@@ -75,6 +74,7 @@ def main():
     running = True
 
     world = World(WIDTH, HEIGHT)
+    world.ti_test()
     world.populate(int(sys.argv[1]))
 
 
@@ -87,7 +87,8 @@ def main():
         screen.fill("black") # clear screen
 
         world.tick(delta)
-        print(world.get_stats())
+        # print(world.get_stats())
+        # print()
 
         draw_particles(world.get_particles(), screen)
 
