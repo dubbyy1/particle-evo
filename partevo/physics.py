@@ -1,22 +1,3 @@
-
-
-
-
- ##       ##      #######
-#  #     #  #   #         #
-#  #     #  #     ##   ##
-#  #     #  #      #   #
-#  #     #  #      #   #
-#   #   #   #     ##   ##
- #   ^^^   #    #         #
-   #######        #######
-
-
-
-
-
-
-
 import taichi as ti
 from taichi.ui.gui import ScalarField
 
@@ -25,11 +6,10 @@ import numpy as np
 from time import time
 
 ti.init(arch=ti.gpu, random_seed=int(time()))
-print(int(time()))
 
 @ti.data_oriented
 class World:
-    def __init__(self, width:int, height:int, population=50_000, species_count=5):
+    def __init__(self, width:int, height:int, population=100_000, species_count=5):
         self.width:int = width
         self.height:int = height
 
@@ -41,39 +21,17 @@ class World:
         self.traits:ti.MatrixField = ti.Vector.field(3, ti.f32, shape=population)
         self.receptors:ti.MatrixField = ti.Vector.field(3, ti.f32, shape=population)
 
+        self.screen_pos:ti.MatrixField = ti.Vector.field(2, dtype=ti.f32, shape=population)
         self.pos:ti.MatrixField = ti.Vector.field(2, dtype=ti.f32, shape=population)
         self.force:ti.MatrixField = ti.Vector.field(2, dtype=ti.f32, shape=population)
         self.vel:ti.MatrixField = ti.Vector.field(2, dtype=ti.f32, shape=population)
 
         self.rmax = ti.field(dtype=ti.f32, shape=())
-        self.rmax[None] = 0.05
+        self.rmax[None] = 0.2
         self.beta = ti.field(dtype=ti.f32, shape=())
-        self.beta[None] = 0.3
+        self.beta[None] = 0.35
         self.friction = ti.field(dtype=ti.f32, shape=())
-        self.friction[None] = 1
-
-        # self.traits_data = np.array([
-        #     [1.000, 0.500, 1.000],  # Particle A
-        #     [0.750, 0.933, 1.000],  # Particle B
-        #     [0.250, 0.933, 1.000],  # Particle C
-        #     [0.000, 0.500, 1.000],  # Particle D
-        #     [0.250, 0.067, 1.000],  # Particle E
-        #     [0.750, 0.067, 1.000],  # Particle F
-        # ], dtype=np.float32)
-        # self.traits_temp = ti.Vector.field(3, ti.f32, shape=(6))
-        # self.traits_temp.from_numpy(self.traits_data)
-
-        # self.receptors_data = np.array([
-        #     [1.000, 0.000, -0.500],  # Particle A
-        #     [0.500, 0.866, -0.683],  # Particle B
-        #     [-0.500, 0.866, -0.183],  # Particle C
-        #     [-1.000, 0.000, 0.500],  # Particle D
-        #     [-0.500, -0.866, 0.683],  # Particle E
-        #     [0.500, -0.866, 0.183],  # Particle F
-        # ], dtype=np.float32)
-        # self.receptors_temp = ti.Vector.field(3, ti.f32, shape=(6))
-        # self.receptors_temp.from_numpy(self.receptors_data)
-
+        self.friction[None] = 0.8
         self.species = ti.Vector.field(3, ti.f32, shape=(species_count, 2))
 
         self.p:ti.MatrixField|ScalarField = ti.field(ti.f32, shape=())
@@ -132,7 +90,8 @@ class World:
             else:
                 magnitude = affinity * (1 - abs(1 + beta - 2 * norm) / (1 - beta))
 
-            force = (rel / dist) * magnitude * rmax
+            force_mult = 1
+            force = (rel / dist) * magnitude * force_mult * rmax
 
         return force
 
@@ -159,9 +118,14 @@ class World:
                 elif self.pos[i][d] > 1.0:
                     self.pos[i][d] -= 2.0
 
+    @ti.kernel
+    def make_screen_pos(self):
+        for i in range(self.population[None]):
+            self.screen_pos[i] = (self.pos[i] / 2) + 0.5
+
     def get_particles(self):
-        pop = self.population[None]
-        return (self.pos.to_numpy()[:pop], self.traits.to_numpy()[:pop], self.receptors.to_numpy()[:pop])
+        self.make_screen_pos()
+        return (self.screen_pos, self.traits, self.receptors)
 
     def get_matrix(self):
         return self.matrix.to_numpy()
