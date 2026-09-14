@@ -5,26 +5,26 @@ import numpy as np
 
 from time import time
 
-ti.init(arch=ti.gpu, random_seed=int(time()))
+ti.init(arch=ti.gpu, random_seed=int(time()) + 19)
 
 @ti.data_oriented
 class World:
-    def __init__(self, width:int, height:int, population=100_000, species_count=5):
+    def __init__(self, width:int, height:int, species_count=5):
+        capacity = 100_000
         self.width:int = width
         self.height:int = height
 
         self.population:ti.MatrixField|ScalarField = ti.field(ti.i32, shape=())
-        self.population[None] = population
+        self.population[None] = capacity
         self.species_count:ti.MatrixField|ScalarField = ti.field(ti.i32, shape=())
         self.species_count[None] = species_count
 
-        self.traits:ti.MatrixField = ti.Vector.field(3, ti.f32, shape=population)
-        self.receptors:ti.MatrixField = ti.Vector.field(3, ti.f32, shape=population)
+        self.traits:ti.MatrixField = ti.Vector.field(3, ti.f32, shape=capacity)
+        self.receptors:ti.MatrixField = ti.Vector.field(3, ti.f32, shape=capacity)
 
-        self.screen_pos:ti.MatrixField = ti.Vector.field(2, dtype=ti.f32, shape=population)
-        self.pos:ti.MatrixField = ti.Vector.field(2, dtype=ti.f32, shape=population)
-        self.force:ti.MatrixField = ti.Vector.field(2, dtype=ti.f32, shape=population)
-        self.vel:ti.MatrixField = ti.Vector.field(2, dtype=ti.f32, shape=population)
+        self.pos:ti.MatrixField = ti.Vector.field(2, dtype=ti.f32, shape=capacity)
+        self.force:ti.MatrixField = ti.Vector.field(2, dtype=ti.f32, shape=capacity)
+        self.vel:ti.MatrixField = ti.Vector.field(2, dtype=ti.f32, shape=capacity)
 
         self.rmax = ti.field(dtype=ti.f32, shape=())
         self.rmax[None] = 0.2
@@ -34,38 +34,63 @@ class World:
         self.friction[None] = 0.8
         self.species = ti.Vector.field(3, ti.f32, shape=(species_count, 2))
 
+        self.screen_pos:ti.MatrixField = ti.Vector.field(2, dtype=ti.f32, shape=capacity)
+        self.colors:ti.MatrixField = ti.Vector.field(3, ti.f32, shape=capacity)
+
         self.p:ti.MatrixField|ScalarField = ti.field(ti.f32, shape=())
 
     @ti.func
-    def init_species(self):
+    def init_species(self, count):
+        self.species_count[None] = count
         for i in range(self.species_count[None]):
             t1, t2, t3 = [ti.random(), ti.random(), ti.random()]
             self.species[i, 0] = ti.Vector([t1, t2, t3])
-            # sum = t1 + t2 + t3
-            # self.species[i, 0] = ti.Vector([t1 / sum, t2 / sum, t3 / sum])
 
             self.species[i, 1] = ti.Vector([(ti.random() * 2) - 1, (ti.random() * 2) - 1, (ti.random() * 2) - 1])
 
     @ti.kernel
-    def populate(self, count:int):
+    def populate(self, count:int, species_count:int):
         self.population[None] = count
-        self.init_species()
+        self.init_species(species_count)
 
         for i in range(count):
-            self.traits[i] = self.species[i % 6, 0]
-            self.receptors[i] = self.species[i % 6, 1]
             self.pos[i] = ti.Vector([ti.random()*2 - 1, ti.random()*2 - 1])
             self.force[i] = ti.Vector([0.0, 0.0])
             self.vel[i] = ti.Vector([0.0, 0.0])
 
+    @ti.kernel
+    def update_population(self, old_pop:int, new_pop:int):
+        if old_pop < new_pop:
+            for i in range(new_pop - old_pop):
+                self.pos[i + old_pop] = ti.Vector([ti.random()*2 - 1, ti.random()*2 - 1])
+                self.force[i + old_pop] = ti.Vector([0.0, 0.0])
+                self.vel[i + old_pop] = ti.Vector([0.0, 0.0])
+            self.population[None] = new_pop
+        if new_pop < old_pop:
+            for i in range(old_pop - new_pop):
+                self.pos[new_pop + i] = ti.Vector([-2.0, -2.0])
+                self.screen_pos[new_pop + i] = ti.Vector([-2.0, -2.0])
+                self.force[new_pop + i] = ti.Vector([0.0, 0.0])
+                self.vel[new_pop + i] = ti.Vector([0.0, 0.0])
+            self.population[None] = new_pop
+
+    @ti.kernel
+    def update_species(self):
+        pass
+
     @ti.func
     def apply_friction(self, dt, pop):
         for i in range(pop):
-            self.vel[i] *= self.friction[None] ** (60*dt)
+            self.vel[i] *= self.friction[None]# ** (60*dt)
 
     @ti.func
     def get_affinity(self, i, j):
-        return ti.tanh(ti.math.dot(self.receptors[i], self.traits[j]))
+        i_species = i % self.species_count[None]
+        j_species = j % self.species_count[None]
+        return ti.tanh(ti.math.dot(
+            self.species[i % self.species_count[None], 1],
+            self.species[j % self.species_count[None], 0]
+        ))
 
     @ti.func
     def get_force(self, i, j):
@@ -123,16 +148,18 @@ class World:
         for i in range(self.population[None]):
             self.screen_pos[i] = (self.pos[i] / 2) + 0.5
 
+    @ti.kernel
+    def make_colors(self):
+        for i in range(self.population[None]):
+            self.colors[i] = self.species[i % self.species_count[None], 0] * 0.8 + 0.2
+
     def get_particles(self):
         self.make_screen_pos()
-        return (self.screen_pos, self.traits, self.receptors)
+        self.make_colors()
+        return (self.screen_pos, self.colors)
 
     def get_matrix(self):
         return self.matrix.to_numpy()
-
-    @ti.kernel
-    def ti_test(self):
-        self.init_species()
 
     def test(self):
         return self.species.to_numpy()
