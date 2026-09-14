@@ -13,15 +13,20 @@ canvas = window.get_canvas()
 gui = window.get_gui()
 
 world = World(WIDTH, HEIGHT)
-world.populate(int(sys.argv[1]), int(sys.argv[2]))
+
+input_pop = 100 if len(sys.argv) < 2 else int(sys.argv[1])
+input_species = 5 if len(sys.argv) < 3 else int(sys.argv[2])
+world.populate(input_pop, input_species)
 
 start_time = time.time()
 loop_time = start_time
 time_scale = 0.3
+particle_radius = 0.5
 
 def draw_options():
     global time_scale
-    gui.begin("Options", 0.02, 0.02, 0.5, 0.15)
+    global particle_radius
+    gui.begin("Options", 0.02, 0.02, 0.5, 0.17)
     time_scale = gui.slider_float("Time Scale", time_scale, 0, 1)
     world.rmax[None] = gui.slider_float("Interaction Radius", world.rmax[None], 0, 1)
     world.beta[None] = gui.slider_float("Repulsion Radius", world.beta[None], 0, 1)
@@ -29,12 +34,13 @@ def draw_options():
     old_pop = world.population[None]
     new_pop = gui.slider_int("Population", old_pop, 0, 100_000)
     world.update_population(old_pop, new_pop)
+    particle_radius = gui.slider_float("Radius", particle_radius, 0, 1)
     gui.end()
 
 def draw_species():
     species_count = world.species_count[None]
     for i in range(species_count):
-        gui.begin(f"Species {i}", 0.02, 0.18 + (0.14 * i), 0.5, 0.13)
+        gui.begin(f"Species {i}", 0.02, 0.2 + (0.14 * i), 0.5, 0.13)
         world.species[i, 0][0] = gui.slider_float("Trait 1", world.species[i, 0][0], 0, 1)
         world.species[i, 0][1] = gui.slider_float("Trait 2", world.species[i, 0][1], 0, 1)
         world.species[i, 0][2] = gui.slider_float("Trait 3", world.species[i, 0][2], 0, 1)
@@ -44,9 +50,20 @@ def draw_species():
         gui.end()
     world.update_species()
 
+
 def draw_ui():
     draw_options()
     draw_species()
+
+    gui.begin("Controls", 0.78, 0.2, 0.2, 0.12)
+    if gui.button("Full Reset"):
+        world.populate(world.population[None], world.species_count[None])
+    if gui.button("Randomize Positions"):
+        world.random_pos()
+    if gui.button("Randomize Species"):
+        world.random_species()
+    world.update_species_count(gui.slider_int("Species", world.species_count[None], 1, 10))
+    gui.end()
 
 while True:
     draw_ui()
@@ -57,7 +74,7 @@ while True:
 
     canvas.set_background_color((0,0,0))
 
-    canvas.circles(particles[0], radius=0.002, per_vertex_color=particles[1])
+    canvas.circles(particles[0], radius=0.02 * particle_radius, per_vertex_color=particles[1])
 
     window.show()
 

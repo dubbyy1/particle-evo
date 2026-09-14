@@ -11,6 +11,7 @@ ti.init(arch=ti.gpu, random_seed=int(time()) + 19)
 class World:
     def __init__(self, width:int, height:int, species_count=5):
         capacity = 100_000
+        species_capacity = 10
         self.width:int = width
         self.height:int = height
 
@@ -32,7 +33,7 @@ class World:
         self.beta[None] = 0.35
         self.friction = ti.field(dtype=ti.f32, shape=())
         self.friction[None] = 0.8
-        self.species = ti.Vector.field(3, ti.f32, shape=(species_count, 2))
+        self.species = ti.Vector.field(3, ti.f32, shape=(species_capacity, 2))
 
         self.screen_pos:ti.MatrixField = ti.Vector.field(2, dtype=ti.f32, shape=capacity)
         self.colors:ti.MatrixField = ti.Vector.field(3, ti.f32, shape=capacity)
@@ -42,7 +43,7 @@ class World:
     @ti.func
     def init_species(self, count):
         self.species_count[None] = count
-        for i in range(self.species_count[None]):
+        for i in range(10): # max species
             t1, t2, t3 = [ti.random(), ti.random(), ti.random()]
             self.species[i, 0] = ti.Vector([t1, t2, t3])
 
@@ -59,6 +60,14 @@ class World:
             self.vel[i] = ti.Vector([0.0, 0.0])
 
     @ti.kernel
+    def random_species(self):
+        self.init_species(self.species_count[None])
+    @ti.kernel
+    def random_pos(self):
+        for i in range(self.population[None]):
+            self.pos[i] = ti.Vector([ti.random()*2 - 1, ti.random()*2 - 1])
+
+    @ti.kernel
     def update_population(self, old_pop:int, new_pop:int):
         if old_pop < new_pop:
             for i in range(new_pop - old_pop):
@@ -73,6 +82,10 @@ class World:
                 self.force[new_pop + i] = ti.Vector([0.0, 0.0])
                 self.vel[new_pop + i] = ti.Vector([0.0, 0.0])
             self.population[None] = new_pop
+
+    @ti.kernel
+    def update_species_count(self, count:int):
+        self.species_count[None] = count
 
     @ti.kernel
     def update_species(self):
