@@ -1,6 +1,6 @@
 # particle-evo
 <img width="400" height="400" alt="moon_with_ui" src="https://raw.githubusercontent.com/dubbyy1/particle-evo/refs/heads/main/img/demo.gif" />
-A Particle Life simulation using *genomes*.
+A Particle Life simulation using genomes.
 
 ## What's a Genome?
 In traditional Particle Life particles are divided into colors, and their relationships are defined by a square matrix. My version uses a fixed number of species, each with their own genome influencing how they interact.
