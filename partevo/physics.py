@@ -15,6 +15,8 @@ class World:
         self.width:int = width
         self.height:int = height
 
+        self.visualize:ti.MatrixField|ScalarField = ti.field(ti.i32, shape=())
+        self.visualize[None] = 0
         self.population:ti.MatrixField|ScalarField = ti.field(ti.i32, shape=())
         self.population[None] = capacity
         self.species_count:ti.MatrixField|ScalarField = ti.field(ti.i32, shape=())
@@ -40,19 +42,17 @@ class World:
 
         self.p:ti.MatrixField|ScalarField = ti.field(ti.f32, shape=())
 
-    @ti.func
-    def init_species(self, count):
-        self.species_count[None] = count
-        for i in range(10): # max species
-            t1, t2, t3 = [ti.random(), ti.random(), ti.random()]
-            self.species[i, 0] = ti.Vector([t1, t2, t3])
-
-            self.species[i, 1] = ti.Vector([(ti.random() * 2) - 1, (ti.random() * 2) - 1, (ti.random() * 2) - 1])
-
     @ti.kernel
     def populate(self, count:int, species_count:int):
         self.population[None] = count
-        self.init_species(species_count)
+
+        for i in range(10): # max species
+            self.species[i, 0] = ti.Vector([
+                ti.random(), ti.random(), ti.random()
+            ])
+            self.species[i, 1] = ti.Vector([
+                (ti.random() * 2) - 1, (ti.random() * 2) - 1, (ti.random() * 2) - 1
+            ])
 
         for i in range(count):
             self.pos[i] = ti.Vector([ti.random()*2 - 1, ti.random()*2 - 1])
@@ -60,8 +60,27 @@ class World:
             self.vel[i] = ti.Vector([0.0, 0.0])
 
     @ti.kernel
-    def random_species(self):
-        self.init_species(self.species_count[None])
+    def random_genome(self):
+        for i in range(10): # max species
+            self.species[i, 0] = ti.Vector([
+                ti.random(), ti.random(), ti.random()
+            ])
+            self.species[i, 1] = ti.Vector([
+                (ti.random() * 2) - 1, (ti.random() * 2) - 1, (ti.random() * 2) - 1
+            ])
+    @ti.kernel
+    def random_traits(self):
+        for i in range(10): # max species
+            self.species[i, 0] = ti.Vector([
+                ti.random(), ti.random(), ti.random()
+            ])
+    @ti.kernel
+    def random_receptors(self):
+        for i in range(10): # max species
+            self.species[i, 1] = ti.Vector([
+                (ti.random() * 2) - 1, (ti.random() * 2) - 1, (ti.random() * 2) - 1
+            ])
+
     @ti.kernel
     def random_pos(self):
         for i in range(self.population[None]):
@@ -164,7 +183,9 @@ class World:
     @ti.kernel
     def make_colors(self):
         for i in range(self.population[None]):
-            self.colors[i] = self.species[i % self.species_count[None], 0] * 0.8 + 0.2
+            self.colors[i] = self.species[i % self.species_count[None], self.visualize[None]]# * 0.8 + 0.2
+            if self.visualize[None] == 1:
+                self.colors[i] = abs(self.colors[i])
 
     def get_particles(self):
         self.make_screen_pos()
