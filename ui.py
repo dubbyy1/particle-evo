@@ -55,7 +55,6 @@ def draw_species():
         world.species[i, 1][1] = gui.slider_float("Receptor 2", world.species[i, 1][1], -1, 1)
         world.species[i, 1][2] = gui.slider_float("Receptor 3", world.species[i, 1][2], -1, 1)
         gui.end()
-    world.update_species()
 
 def draw_controls():
     global particle_radius, time_scale, bg_color

@@ -6,7 +6,7 @@ from time import time
 import numpy as np
 import json
 
-ti.init(arch=ti.gpu, random_seed=round(time()))
+ti.init(arch=ti.gpu, random_seed=int(time()))
 
 @ti.data_oriented
 class World:
@@ -104,30 +104,20 @@ class World:
                 self.vel[new_pop + i] = ti.Vector([0.0, 0.0])
             self.population[None] = new_pop
 
-    @ti.kernel
-    def update_species_count(self, count:int):
-        self.species_count[None] = count
-
-    @ti.kernel
-    def update_species(self):
-        pass
-
     @ti.func
-    def apply_friction(self, dt, pop):
+    def apply_friction(self, dt:float, pop:int):
         for i in range(pop):
             self.vel[i] *= self.friction[None]# ** (60*dt)
 
     @ti.func
-    def get_affinity(self, i, j):
-        i_species = i % self.species_count[None]
-        j_species = j % self.species_count[None]
+    def get_affinity(self, i:int, j:int):
         return ti.tanh(ti.math.dot(
             self.species[i % self.species_count[None], 1],
             self.species[j % self.species_count[None], 0]
         ))
 
     @ti.func
-    def get_force(self, i, j):
+    def get_force(self, i:int, j:int):
         rmax = self.rmax[None]
         beta = self.beta[None]
 
@@ -155,10 +145,10 @@ class World:
         return force
 
     @ti.kernel
-    def tick(self, dt:ti.f32):
+    def tick(self, dt:float):
         pop = self.population[None]
 
-        self.apply_friction(dt, pop)
+        # self.apply_friction(dt, pop)
 
         for i in range(pop):
 
@@ -195,10 +185,9 @@ class World:
         return (self.screen_pos, self.colors)
 
     def save(self, radius, time_scale, bg_color):
-        # Opens OS save dialog
         filepath = easygui.filesavebox(title="Save Config", default="save" + str(int(time())) + ".json", filetypes=["*.json"])
         if not filepath:
-            return  # User canceled
+            return
 
         data = {
             "options": {
@@ -217,7 +206,7 @@ class World:
         with open(filepath, 'w') as f:
             json.dump(data, f, indent=4)
 
-    def load(self) -> tuple[int, float]:
+    def load(self) -> tuple[int, float, tuple[float, float, float]]:
         filepath = easygui.fileopenbox(title="Load Config", filetypes=["*.json"])
         if not filepath:
             return
@@ -231,9 +220,7 @@ class World:
         self.friction[None] = options["friction"]
 
         self.update_population(self.population[None], options["population"])
-        self.update_species_count(options["species_count"])
-
+        self.species_count[None] = options["species_count"]
         self.species.from_numpy(np.array(data["species"], dtype=np.float32))
-        self.update_species()
 
         return (options["radius"], options["time_scale"], options["bg_color"])
