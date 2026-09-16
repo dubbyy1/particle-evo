@@ -47,7 +47,10 @@ def draw_species():
     species_count = world.species_count[None]
     for i in range(species_count):
         gui.begin(f"Species {i}", 0.01, 0.195 + (0.075 * i), 0.5, 0.125)
-        world.species[i, 0]    = gui.color_edit_3("Traits", tuple(world.species[i, 0]))
+        # world.species[i, 0]    = gui.color_edit_3("Traits", tuple(world.species[i, 0]))
+        world.species[i, 0][0] = gui.slider_float("Trait 1", world.species[i, 0][0], 0, 1)
+        world.species[i, 0][1] = gui.slider_float("Trait 2", world.species[i, 0][1], 0, 1)
+        world.species[i, 0][2] = gui.slider_float("Trait 3", world.species[i, 0][2], 0, 1)
         world.species[i, 1][0] = gui.slider_float("Receptor 1", world.species[i, 1][0], -1, 1)
         world.species[i, 1][1] = gui.slider_float("Receptor 2", world.species[i, 1][1], -1, 1)
         world.species[i, 1][2] = gui.slider_float("Receptor 3", world.species[i, 1][2], -1, 1)
