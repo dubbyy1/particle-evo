@@ -1,11 +1,12 @@
 import taichi as ti
 from taichi.ui.gui import ScalarField
-
-import numpy as np
+import easygui
 
 from time import time
+import numpy as np
+import json
 
-ti.init(arch=ti.gpu, random_seed=int(time()) + 19)
+ti.init(arch=ti.gpu, random_seed=round(time()))
 
 @ti.data_oriented
 class World:
@@ -44,6 +45,7 @@ class World:
 
     @ti.kernel
     def populate(self, count:int, species_count:int):
+        self.species_count[None] = species_count
         self.population[None] = count
 
         for i in range(10): # max species
@@ -192,8 +194,46 @@ class World:
         self.make_colors()
         return (self.screen_pos, self.colors)
 
-    def get_matrix(self):
-        return self.matrix.to_numpy()
+    def save(self, radius, time_scale, bg_color):
+        # Opens OS save dialog
+        filepath = easygui.filesavebox(title="Save Config", default="save" + str(int(time())) + ".json", filetypes=["*.json"])
+        if not filepath:
+            return  # User canceled
 
-    def test(self):
-        return self.species.to_numpy()
+        data = {
+            "options": {
+                "rmax": float(self.rmax[None]),
+                "beta": float(self.beta[None]),
+                "friction": float(self.friction[None]),
+                "population": int(self.population[None]),
+                "species_count": int(self.species_count[None]),
+                "radius": radius,
+                "time_scale": time_scale,
+                "bg_color": bg_color
+            },
+            "species": self.species.to_numpy().tolist()
+        }
+
+        with open(filepath, 'w') as f:
+            json.dump(data, f, indent=4)
+
+    def load(self) -> tuple[int, float]:
+        filepath = easygui.fileopenbox(title="Load Config", filetypes=["*.json"])
+        if not filepath:
+            return
+
+        with open(filepath, 'r') as f:
+            data = json.load(f)
+
+        options = data["options"]
+        self.rmax[None] = options["rmax"]
+        self.beta[None] = options["beta"]
+        self.friction[None] = options["friction"]
+
+        self.update_population(self.population[None], options["population"])
+        self.update_species_count(options["species_count"])
+
+        self.species.from_numpy(np.array(data["species"], dtype=np.float32))
+        self.update_species()
+
+        return (options["radius"], options["time_scale"], options["bg_color"])
