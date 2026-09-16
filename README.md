@@ -18,7 +18,7 @@ A genome is made of **3 traits** (0 to 1) and **3 receptors** (-1 to 1) and each
  - Save and load configurations
 
 ## How to run
-Download the latest relevant executable from the [releases page]. Press SPACE to toggle UI, and ESCAPE to close. Mouse to interact with buttons and sliders.
+Download the latest relevant executable from the [releases page](https://github.com/dubbyy1/particle-evo/releases/). Press SPACE to toggle UI, and ESCAPE to close. Mouse to interact with buttons and sliders.
 
 ## System Requirements
 Will run on a CPU but good GPU is required for higher particle counts. My GPU (RX 6800) can comfortably run 50,000+, whereas my CPU (7600X) caps out at ~8000 particles.
